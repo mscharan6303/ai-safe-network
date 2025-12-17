@@ -2,10 +2,12 @@ import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import ArchitectureSection from "@/components/ArchitectureSection";
 import DomainAnalyzer from "@/components/DomainAnalyzer";
+import MonitoringDashboard from "@/components/MonitoringDashboard";
 import FeaturesSection from "@/components/FeaturesSection";
 import CodeSection from "@/components/CodeSection";
 import Footer from "@/components/Footer";
 import { Helmet } from "react-helmet";
+import { Toaster } from "@/components/ui/toaster";
 
 const Index = () => {
   return (
@@ -25,6 +27,9 @@ const Index = () => {
           <div id="demo">
             <DomainAnalyzer />
           </div>
+          <div id="monitor">
+            <MonitoringDashboard />
+          </div>
           <div id="features">
             <FeaturesSection />
           </div>
@@ -34,6 +39,7 @@ const Index = () => {
         </main>
         <Footer />
       </div>
+      <Toaster />
     </>
   );
 };

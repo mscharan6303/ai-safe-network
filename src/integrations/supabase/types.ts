@@ -14,7 +14,105 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      alerts: {
+        Row: {
+          acknowledged: boolean | null
+          action: string
+          created_at: string
+          device_hash: string | null
+          domain: string
+          id: string
+          risk_score: number
+          threat_level: string
+        }
+        Insert: {
+          acknowledged?: boolean | null
+          action: string
+          created_at?: string
+          device_hash?: string | null
+          domain: string
+          id?: string
+          risk_score: number
+          threat_level: string
+        }
+        Update: {
+          acknowledged?: boolean | null
+          action?: string
+          created_at?: string
+          device_hash?: string | null
+          domain?: string
+          id?: string
+          risk_score?: number
+          threat_level?: string
+        }
+        Relationships: []
+      }
+      domain_logs: {
+        Row: {
+          action: string
+          created_at: string
+          device_hash: string | null
+          domain: string
+          features: Json | null
+          id: string
+          risk_score: number
+          source: string | null
+          threat_level: string
+        }
+        Insert: {
+          action?: string
+          created_at?: string
+          device_hash?: string | null
+          domain: string
+          features?: Json | null
+          id?: string
+          risk_score?: number
+          source?: string | null
+          threat_level?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          device_hash?: string | null
+          domain?: string
+          features?: Json | null
+          id?: string
+          risk_score?: number
+          source?: string | null
+          threat_level?: string
+        }
+        Relationships: []
+      }
+      traffic_stats: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          soft_blocked: number | null
+          total_allowed: number | null
+          total_analyzed: number | null
+          total_blocked: number | null
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          soft_blocked?: number | null
+          total_allowed?: number | null
+          total_analyzed?: number | null
+          total_blocked?: number | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          soft_blocked?: number | null
+          total_allowed?: number | null
+          total_analyzed?: number | null
+          total_blocked?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
