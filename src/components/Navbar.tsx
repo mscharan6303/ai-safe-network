@@ -8,6 +8,7 @@ const Navbar = () => {
   const navLinks = [
     { label: "Architecture", href: "#architecture" },
     { label: "Demo", href: "#demo" },
+    { label: "Monitor", href: "#monitor" },
     { label: "Features", href: "#features" },
     { label: "Code", href: "#code" },
   ];

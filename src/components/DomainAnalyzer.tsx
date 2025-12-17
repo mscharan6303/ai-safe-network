@@ -2,11 +2,15 @@ import { useState } from "react";
 import { Search, Shield, AlertTriangle, CheckCircle, Loader2, XCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 interface AnalysisResult {
   domain: string;
   riskScore: number;
-  action: "ALLOW" | "BLOCK";
+  threatLevel: string;
+  action: "ALLOW" | "SOFT-BLOCK" | "HARD-BLOCK";
+  category: string;
   features: {
     length: number;
     hyphens: number;
@@ -14,6 +18,9 @@ interface AnalysisResult {
     hasFree: boolean;
     hasBet: boolean;
     hasWin: boolean;
+    hasPhishing: boolean;
+    hasAdult: boolean;
+    entropy: number;
   };
 }
 
@@ -22,54 +29,39 @@ const DomainAnalyzer = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
 
-  // Simulated AI analysis
-  const analyzeDomain = (inputDomain: string): AnalysisResult => {
-    const d = inputDomain.toLowerCase();
-    
-    const features = {
-      length: d.length,
-      hyphens: (d.match(/-/g) || []).length,
-      dots: (d.match(/\./g) || []).length,
-      hasFree: d.includes("free"),
-      hasBet: d.includes("bet") || d.includes("casino") || d.includes("poker"),
-      hasWin: d.includes("win") || d.includes("prize") || d.includes("money"),
-    };
-
-    // Simplified risk calculation
-    let risk = 0;
-    risk += features.length > 25 ? 20 : 0;
-    risk += features.hyphens * 15;
-    risk += features.dots > 2 ? 15 : 0;
-    risk += features.hasFree ? 25 : 0;
-    risk += features.hasBet ? 35 : 0;
-    risk += features.hasWin ? 30 : 0;
-
-    // Known safe domains
-    const safeDomains = ["google.com", "github.com", "stackoverflow.com", "youtube.com", "facebook.com"];
-    if (safeDomains.some(safe => d.includes(safe))) {
-      risk = Math.min(risk, 15);
-    }
-
-    return {
-      domain: inputDomain,
-      riskScore: Math.min(risk, 100),
-      action: risk >= 80 ? "BLOCK" : "ALLOW",
-      features,
-    };
-  };
-
   const handleAnalyze = async () => {
     if (!domain.trim()) return;
     
     setIsAnalyzing(true);
     setResult(null);
 
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-domain', {
+        body: { domain: domain.trim(), source: 'manual' },
+      });
 
-    const analysisResult = analyzeDomain(domain);
-    setResult(analysisResult);
-    setIsAnalyzing(false);
+      if (error) throw error;
+
+      setResult(data);
+      
+      // Show toast for blocked domains
+      if (data.action !== 'ALLOW') {
+        toast({
+          title: data.action === 'HARD-BLOCK' ? "🚨 Domain Blocked!" : "⚠️ Domain Flagged",
+          description: `${domain} has been classified as ${data.threatLevel} risk`,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Analysis failed:', error);
+      toast({
+        title: "Analysis Failed",
+        description: "Could not analyze domain. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const exampleDomains = [
@@ -78,6 +70,34 @@ const DomainAnalyzer = () => {
     "bet-now-casino.com",
     "github.com",
   ];
+
+  const getActionIcon = (action: string) => {
+    switch (action) {
+      case 'HARD-BLOCK':
+        return <XCircle className="w-8 h-8 text-destructive" />;
+      case 'SOFT-BLOCK':
+        return <AlertTriangle className="w-8 h-8 text-warning" />;
+      default:
+        return <CheckCircle className="w-8 h-8 text-success" />;
+    }
+  };
+
+  const getActionColor = (action: string) => {
+    switch (action) {
+      case 'HARD-BLOCK':
+        return 'border-destructive/50';
+      case 'SOFT-BLOCK':
+        return 'border-warning/50';
+      default:
+        return 'border-success/50';
+    }
+  };
+
+  const getRiskColor = (score: number) => {
+    if (score >= 80) return 'text-destructive';
+    if (score >= 50) return 'text-warning';
+    return 'text-success';
+  };
 
   return (
     <section className="py-24 relative">
@@ -147,37 +167,31 @@ const DomainAnalyzer = () => {
 
           {/* Results section */}
           {result && (
-            <div className={`card-cyber p-8 animate-fade-in ${
-              result.action === "BLOCK" ? "border-destructive/50" : "border-success/50"
-            }`}>
+            <div className={`card-cyber p-8 animate-fade-in ${getActionColor(result.action)}`}>
               {/* Header */}
               <div className="flex items-center justify-between mb-6 pb-6 border-b border-border">
                 <div className="flex items-center gap-4">
-                  {result.action === "BLOCK" ? (
-                    <div className="w-14 h-14 rounded-xl bg-destructive/20 flex items-center justify-center">
-                      <XCircle className="w-8 h-8 text-destructive" />
-                    </div>
-                  ) : (
-                    <div className="w-14 h-14 rounded-xl bg-success/20 flex items-center justify-center">
-                      <CheckCircle className="w-8 h-8 text-success" />
-                    </div>
-                  )}
+                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${
+                    result.action === 'HARD-BLOCK' ? 'bg-destructive/20' :
+                    result.action === 'SOFT-BLOCK' ? 'bg-warning/20' : 'bg-success/20'
+                  }`}>
+                    {getActionIcon(result.action)}
+                  </div>
                   <div>
                     <div className="font-mono text-lg mb-1">{result.domain}</div>
                     <div className={`text-sm font-semibold ${
-                      result.action === "BLOCK" ? "text-destructive" : "text-success"
+                      result.action === 'HARD-BLOCK' ? 'text-destructive' :
+                      result.action === 'SOFT-BLOCK' ? 'text-warning' : 'text-success'
                     }`}>
-                      {result.action === "BLOCK" ? "🚫 BLOCKED" : "✓ ALLOWED"}
+                      {result.action === 'HARD-BLOCK' ? '🚫 HARD BLOCKED' :
+                       result.action === 'SOFT-BLOCK' ? '⚠️ SOFT BLOCKED' : '✓ ALLOWED'}
                     </div>
                   </div>
                 </div>
 
                 {/* Risk score gauge */}
                 <div className="text-center">
-                  <div className={`text-4xl font-bold ${
-                    result.riskScore >= 80 ? "text-destructive" :
-                    result.riskScore >= 50 ? "text-warning" : "text-success"
-                  }`}>
+                  <div className={`text-4xl font-bold ${getRiskColor(result.riskScore)}`}>
                     {result.riskScore}%
                   </div>
                   <div className="text-sm text-muted-foreground">Risk Score</div>
@@ -188,12 +202,8 @@ const DomainAnalyzer = () => {
               <div className="mb-6">
                 <div className="flex items-center justify-between text-sm mb-2">
                   <span className="text-muted-foreground">Threat Level</span>
-                  <span className={
-                    result.riskScore >= 80 ? "text-destructive" :
-                    result.riskScore >= 50 ? "text-warning" : "text-success"
-                  }>
-                    {result.riskScore >= 80 ? "High" :
-                     result.riskScore >= 50 ? "Medium" : "Low"}
+                  <span className={getRiskColor(result.riskScore)}>
+                    {result.threatLevel.charAt(0).toUpperCase() + result.threatLevel.slice(1)}
                   </span>
                 </div>
                 <div className="h-3 bg-secondary rounded-full overflow-hidden">
@@ -205,6 +215,14 @@ const DomainAnalyzer = () => {
                     style={{ width: `${result.riskScore}%` }}
                   />
                 </div>
+              </div>
+
+              {/* Category badge */}
+              <div className="mb-6">
+                <span className="text-sm text-muted-foreground mr-2">Category:</span>
+                <span className="px-3 py-1 rounded-full text-sm font-medium bg-primary/20 text-primary capitalize">
+                  {result.category}
+                </span>
               </div>
 
               {/* Feature analysis */}
@@ -219,12 +237,12 @@ const DomainAnalyzer = () => {
                     <div className="font-mono font-semibold">{result.features.length} chars</div>
                   </div>
                   <div className="p-3 bg-secondary/50 rounded-lg">
-                    <div className="text-xs text-muted-foreground mb-1">Hyphens</div>
-                    <div className="font-mono font-semibold">{result.features.hyphens}</div>
+                    <div className="text-xs text-muted-foreground mb-1">Entropy</div>
+                    <div className="font-mono font-semibold">{result.features.entropy}</div>
                   </div>
                   <div className="p-3 bg-secondary/50 rounded-lg">
-                    <div className="text-xs text-muted-foreground mb-1">Subdomains</div>
-                    <div className="font-mono font-semibold">{result.features.dots}</div>
+                    <div className="text-xs text-muted-foreground mb-1">Hyphens</div>
+                    <div className="font-mono font-semibold">{result.features.hyphens}</div>
                   </div>
                   <div className={`p-3 rounded-lg ${result.features.hasFree ? "bg-destructive/20" : "bg-secondary/50"}`}>
                     <div className="text-xs text-muted-foreground mb-1">"free" keyword</div>
@@ -234,9 +252,9 @@ const DomainAnalyzer = () => {
                     <div className="text-xs text-muted-foreground mb-1">Gambling terms</div>
                     <div className="font-mono font-semibold">{result.features.hasBet ? "Found ⚠️" : "None"}</div>
                   </div>
-                  <div className={`p-3 rounded-lg ${result.features.hasWin ? "bg-destructive/20" : "bg-secondary/50"}`}>
-                    <div className="text-xs text-muted-foreground mb-1">Scam keywords</div>
-                    <div className="font-mono font-semibold">{result.features.hasWin ? "Found ⚠️" : "None"}</div>
+                  <div className={`p-3 rounded-lg ${result.features.hasPhishing ? "bg-destructive/20" : "bg-secondary/50"}`}>
+                    <div className="text-xs text-muted-foreground mb-1">Phishing terms</div>
+                    <div className="font-mono font-semibold">{result.features.hasPhishing ? "Found ⚠️" : "None"}</div>
                   </div>
                 </div>
               </div>
