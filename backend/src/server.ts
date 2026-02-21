@@ -11,22 +11,16 @@ import path from 'path';
 dotenv.config();
 
 const app = express();
-// Dynamic CORS to allow all subdomains of vercel and render (security for dashboards)
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:3000',
-  /\.vercel\.app$/, // Any vercel subdomain
-  /\.onrender\.com$/ // Any render subdomain
-];
+let isProtectionActive = true;
+const domainCache = new Map<string, any>();
 
+app.get('/api/health', (req: Request, res: Response) => {
+  res.json({ status: 'ok', time: new Date().toISOString(), protection: isProtectionActive });
+});
+
+// Dynamic CORS to allow all subdomains of vercel and render
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.some(base => typeof base === 'string' ? base === origin : base.test(origin))) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true,
   credentials: true
 }));
 
@@ -35,13 +29,7 @@ app.use(express.json());
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.some(base => typeof base === 'string' ? base === origin : base.test(origin))) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
+    origin: true,
     methods: ["GET", "POST"],
     credentials: true
   },
@@ -56,8 +44,6 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
 const supabase = (SUPABASE_URL && SUPABASE_KEY) 
   ? createClient(SUPABASE_URL, SUPABASE_KEY)
   : null;
-
-const domainCache = new Map<string, any>();
 
 function calculateEntropy(str: string): number {
   const len = str.length;
@@ -508,9 +494,6 @@ app.post('/api/analyze', async (req: Request, res: Response) => {
 
 
 
-
-// Add a global variable for protection status
-let isProtectionActive = true;
 
 // Endpoint to toggle protection
 app.post('/api/toggle-protection', (req: Request, res: Response) => {
