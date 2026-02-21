@@ -69,8 +69,8 @@ function checkCurrentPage() {
     const fullUrl = window.location.href;
     const domain = window.location.hostname;
     
-    // Whitelist localhost/dashboard
-    if (domain === 'localhost' || domain === '127.0.0.1') return;
+    // Whitelist localhost/dashboard and project domains
+    if (domain === 'localhost' || domain === '127.0.0.1' || domain.endsWith('vercel.app') || domain.endsWith('onrender.com')) return;
 
     chrome.runtime.sendMessage({ action: "analyze", domain: fullUrl, deepScan: true }, (data) => {
         if (chrome.runtime.lastError) return;
@@ -166,8 +166,8 @@ function analyzeLink(link) {
         if (!window.processedDomains) window.processedDomains = new Set();
         window.processedDomains.add(linkHost);
 
-        // Skip localhost
-        if (linkHost === 'localhost' || linkHost === '127.0.0.1') return;
+        // Skip localhost and project domains
+        if (linkHost === 'localhost' || linkHost === '127.0.0.1' || linkHost.endsWith('vercel.app') || linkHost.endsWith('onrender.com')) return;
 
         chrome.runtime.sendMessage({ action: "analyze", domain: link.href }, (data) => {
 

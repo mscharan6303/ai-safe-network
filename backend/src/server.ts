@@ -104,6 +104,19 @@ function analyzeUrlLogic(urlStr: string, isBackgroundData: boolean = false) {
   } catch (e) {
     domain = urlStr.toLowerCase(); // Fallback
   }
+  
+  // 0. Master Project Bypass (Ensures your dashboard/backend are NEVER blocked)
+  if (domain.includes('vercel.app') || domain.includes('onrender.com') || domain.includes('supabase.co')) {
+    return {
+        domain,
+        fullUrl: urlStr,
+        riskScore: 0,
+        threatLevel: "safe",
+        action: "ALLOW",
+        category: "internal_system",
+        features: { isWhitelisted: true }
+      };
+  }
 
   // 1. Expanded Whitelist Check (Fastest)
   const isWhitelisted = WHITELIST_DOMAINS.some(d => domain === d || domain.endsWith("." + d));
