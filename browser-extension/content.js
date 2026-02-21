@@ -72,35 +72,50 @@ function checkCurrentPage() {
     // Whitelist localhost/dashboard and project domains
     if (domain === 'localhost' || domain === '127.0.0.1' || domain.endsWith('vercel.app') || domain.endsWith('onrender.com')) return;
 
+    // Allow the page to load first, analyzed in the background
     chrome.runtime.sendMessage({ action: "analyze", domain: fullUrl, deepScan: true }, (data) => {
         if (chrome.runtime.lastError) return;
         
+        // ONLY block if the AI explicitly says HARD-BLOCK after analysis
         if (data && data.action === 'HARD-BLOCK') {
-            // 1. Send Notification
             chrome.runtime.sendMessage({ 
                 action: "notify", 
                 title: "🚫 Security Alert", 
                 message: `AI Guard identifies ${domain} as a critical threat.` 
             });
 
-            // 2. Perform Full Block AFTER the page has opened
-            setTimeout(() => {
-                document.body.innerHTML = `
-                    <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:#111827; color:white; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:2147483647; font-family:sans-serif; text-align:center; padding:20px;">
-                        <div style="font-size:80px; margin-bottom:20px;">🛡️</div>
-                        <h1 style="color:#ef4444; font-size:36px; margin-bottom:15px;">Safety Blocked by AI</h1>
-                        <p style="font-size:20px; color:#9ca3af; max-width:700px; line-height:1.6;">
-                            The AI Guard analyzed <b>${domain}</b> after opening and determined it contains <b>${data.category}</b> risks.
-                        </p>
-                        <div style="margin-top:30px; padding:20px; background:#1f2937; border-radius:12px; border:1px solid #374151; min-width:300px;">
-                            <p style="margin:5px 0; color:#ef4444; font-weight:bold; font-size:18px;">Threat: ${data.category}</p>
-                            <p style="margin:10px 0; color:#9ca3af;">Risk Score: ${data.riskScore}%</p>
-                        </div>
-                        <button onclick="window.history.back()" style="margin-top:30px; background:#ef4444; color:white; border:none; padding:12px 30px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:16px;">Go Back to Safety</button>
-                    </div>
-                `;
-                document.body.style.overflow = 'hidden';
-            }, 500); // Small delay to ensure page "opened"
+            // The site is already "open" here. Now we apply the security layer.
+            const overlay = document.createElement('div');
+            overlay.id = 'ai-guard-overlay';
+            overlay.style.cssText = `
+                position:fixed; top:0; left:0; width:100%; height:100%; background:#111827; 
+                color:white; display:flex; flex-direction:column; align-items:center; 
+                justify-content:center; z-index:2147483647; font-family:sans-serif; 
+                text-align:center; padding:20px;
+            `;
+            overlay.innerHTML = `
+                <div style="font-size:80px; margin-bottom:20px;">🛡️</div>
+                <h1 style="color:#ef4444; font-size:36px; margin-bottom:15px;">Safety Blocked by AI</h1>
+                <p style="font-size:20px; color:#9ca3af; max-width:700px; line-height:1.6;">
+                    The AI Guard analyzed <b>${domain}</b> and determined it contains <b>${data.category}</b> risks.
+                </p>
+                <div style="margin-top:30px; padding:20px; background:#1f2937; border-radius:12px; border:1px solid #374151; min-width:300px;">
+                    <p style="margin:5px 0; color:#ef4444; font-weight:bold; font-size:18px;">Threat: ${data.category}</p>
+                    <p style="margin:10px 0; color:#9ca3af;">Risk Score: ${data.riskScore}%</p>
+                </div>
+                <div style="display:flex; gap:20px; margin-top:30px;">
+                    <button id="ai-guard-back" style="background:#ef4444; color:white; border:none; padding:12px 30px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:16px;">Go Back</button>
+                    <button id="ai-guard-proceed" style="background:transparent; color:#9ca3af; border:1px solid #374151; padding:12px 30px; border-radius:8px; cursor:pointer; font-size:16px;">I understand, allow anyway</button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            document.body.style.overflow = 'hidden';
+
+            document.getElementById('ai-guard-back').onclick = () => window.history.back();
+            document.getElementById('ai-guard-proceed').onclick = () => {
+                overlay.remove();
+                document.body.style.overflow = '';
+            };
         }
     });
 }
