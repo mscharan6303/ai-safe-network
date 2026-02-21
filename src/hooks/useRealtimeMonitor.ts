@@ -50,8 +50,9 @@ export function useRealtimeMonitor() {
 
   useEffect(() => {
     const newSocket = io(BACKEND_URL, {
-      transports: ['websocket'],
-      upgrade: false
+      transports: ['websocket', 'polling'], // Allow fallback for stability
+      reconnectionAttempts: 5,
+      timeout: 10000,
     });
 
     newSocket.on('connect', () => {

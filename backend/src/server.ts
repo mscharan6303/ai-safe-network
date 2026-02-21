@@ -11,13 +11,37 @@ import path from 'path';
 dotenv.config();
 
 const app = express();
-app.use(cors());
+// Dynamic CORS to allow all subdomains of vercel and render (security for dashboards)
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  /\.vercel\.app$/, // Any vercel subdomain
+  /\.onrender\.com$/ // Any render subdomain
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.some(base => typeof base === 'string' ? base === origin : base.test(origin))) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
+
 app.use(express.json());
 
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ["https://ai-safe-network-frontend-fu61zheij.vercel.app", "https://ai-safe-network-dashboard.vercel.app", "http://localhost:5173", "http://localhost:3000"], 
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.some(base => typeof base === 'string' ? base === origin : base.test(origin))) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ["GET", "POST"],
     credentials: true
   },

@@ -195,14 +195,19 @@ void sendNXDomainResponse(int packetSize) {
   Serial.println("-> Blocked (A Record pointing to 0.0.0.0)");
 }
 
+#include <WiFiClientSecure.h>
+
 String checkDomainWithAI(String domain) {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi not connected!");
     return "ALLOW";
   }
   
+  WiFiClientSecure client;
+  client.setInsecure(); // Required for Render/Cloud endpoints without certificate bundles
+  
   HTTPClient http;
-  http.begin(backend_url);
+  http.begin(client, backend_url);
   http.addHeader("Content-Type", "application/json");
   http.setTimeout(5000); // 5 second timeout
   
@@ -214,12 +219,13 @@ String checkDomainWithAI(String domain) {
   StaticJsonDocument<200> doc;
   doc["domain"] = domain;
   doc["source"] = "esp32";
+  doc["deviceHash"] = mac;
   doc["deepScan"] = false; // MUST be false to avoid DNS client timeout
   
   String requestBody;
   serializeJson(doc, requestBody);
   
-  Serial.print("Sending to backend: ");
+  Serial.print("Sending to HTTPS backend: ");
   Serial.println(requestBody);
   
   // Send POST
@@ -229,22 +235,22 @@ String checkDomainWithAI(String domain) {
   
   if (httpResponseCode > 0) {
     String response = http.getString();
-    Serial.print("Backend raw response: ");
+    Serial.print("Backend response (HTTPS): ");
     Serial.println(response);
     
     // Parse response - look for "action" in JSON
-    if (response.indexOf("HARD-BLOCK") > 0) {
+    if (response.indexOf("HARD-BLOCK") >= 0) {
       action = "HARD-BLOCK";
-    } else if (response.indexOf("SOFT-BLOCK") > 0) {
+    } else if (response.indexOf("SOFT-BLOCK") >= 0) {
       action = "SOFT-BLOCK";
     } else {
       action = "ALLOW";
     }
   } else {
-    Serial.print("HTTP Error: ");
+    Serial.print("HTTPS Error: ");
     Serial.println(httpResponseCode);
-    // On HTTP error, default to BLOCK for safety
-    action = "HARD-BLOCK";
+    // On HTTP error, default to ALLOW for reliability during setup
+    action = "ALLOW";
   }
   
   http.end();
