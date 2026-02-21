@@ -1,5 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import io, { Socket } from 'socket.io-client';
+import { toast } from "@/hooks/use-toast";
+
+const BACKEND_URL = 'http://localhost:3000';
 
 export interface DomainLog {
   id: string;
@@ -11,6 +14,7 @@ export interface DomainLog {
   source: string;
   features: any;
   created_at: string;
+  category?: string; // Add this if needed
 }
 
 export interface Alert {
@@ -32,6 +36,7 @@ export interface TrafficStats {
 }
 
 export function useRealtimeMonitor() {
+  const [socket, setSocket] = useState<Socket | null>(null);
   const [recentLogs, setRecentLogs] = useState<DomainLog[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [stats, setStats] = useState<TrafficStats>({
@@ -43,145 +48,91 @@ export function useRealtimeMonitor() {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch initial data
-  const fetchInitialData = useCallback(async () => {
-    setIsLoading(true);
-    
-    try {
-      // Fetch recent logs
-      const { data: logs } = await supabase
-        .from('domain_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (logs) {
-        setRecentLogs(logs as DomainLog[]);
-      }
-
-      // Fetch unacknowledged alerts
-      const { data: alertsData } = await supabase
-        .from('alerts')
-        .select('*')
-        .eq('acknowledged', false)
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      if (alertsData) {
-        setAlerts(alertsData as Alert[]);
-      }
-
-      // Fetch today's stats
-      const today = new Date().toISOString().split('T')[0];
-      const { data: statsData } = await supabase
-        .from('traffic_stats')
-        .select('*')
-        .eq('date', today)
-        .maybeSingle();
-
-      if (statsData) {
-        setStats({
-          total_analyzed: statsData.total_analyzed || 0,
-          total_blocked: statsData.total_blocked || 0,
-          total_allowed: statsData.total_allowed || 0,
-          soft_blocked: statsData.soft_blocked || 0,
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching initial data:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Subscribe to realtime updates
   useEffect(() => {
-    fetchInitialData();
+    const newSocket = io(BACKEND_URL);
 
-    // Subscribe to domain_logs changes
-    const logsChannel = supabase
-      .channel('domain-logs-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'domain_logs',
-        },
-        (payload) => {
-          console.log('[REALTIME] New log:', payload.new);
-          setRecentLogs((prev) => [payload.new as DomainLog, ...prev.slice(0, 49)]);
-          
-          // Update stats
-          setStats((prev) => {
-            const newStats = { ...prev, total_analyzed: prev.total_analyzed + 1 };
-            const action = (payload.new as DomainLog).action;
-            if (action === 'ALLOW') newStats.total_allowed++;
-            if (action === 'SOFT-BLOCK') newStats.soft_blocked++;
-            if (action === 'HARD-BLOCK') newStats.total_blocked++;
-            return newStats;
-          });
-        }
-      )
-      .subscribe((status) => {
-        setIsConnected(status === 'SUBSCRIBED');
-        console.log('[REALTIME] Logs channel status:', status);
-      });
+    newSocket.on('connect', () => {
+      console.log('Connected to backend');
+      setIsConnected(true);
+      setIsLoading(false);
+    });
 
-    // Subscribe to alerts
-    const alertsChannel = supabase
-      .channel('alerts-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'alerts',
-        },
-        (payload) => {
-          console.log('[REALTIME] New alert:', payload.new);
-          setAlerts((prev) => [payload.new as Alert, ...prev.slice(0, 19)]);
-          
-          // Play alert sound for high-risk domains
-          const alert = payload.new as Alert;
-          if (alert.risk_score >= 80) {
-            playAlertSound();
-          }
-        }
-      )
-      .subscribe();
+    newSocket.on('disconnect', () => {
+      console.log('Disconnected from backend');
+      setIsConnected(false);
+    });
+
+    newSocket.on('new_analysis', (log: any) => {
+       // Adapt backend camelCase to frontend snake_case
+       const adaptedLog: DomainLog = {
+         id: log.id || Date.now().toString() + Math.random(),
+         domain: log.domain,
+         risk_score: log.riskScore ?? log.risk_score,
+         threat_level: log.threatLevel ?? log.threat_level,
+         action: log.action,
+         device_hash: log.deviceHash || null,
+         source: log.source,
+         features: log.features,
+         created_at: log.timestamp || new Date().toISOString(),
+         category: log.category
+       };
+
+       setRecentLogs(prev => [adaptedLog, ...prev].slice(0, 50));
+       
+       setStats(prev => {
+         const newStats = { ...prev, total_analyzed: prev.total_analyzed + 1 };
+         if (adaptedLog.action === 'HARD-BLOCK') newStats.total_blocked++;
+         else if (adaptedLog.action === 'SOFT-BLOCK') newStats.soft_blocked++;
+         else newStats.total_allowed++;
+         return newStats;
+       });
+    });
+
+    newSocket.on('alert', (alertData: any) => {
+       const alert: Alert = {
+         id: alertData.id || Date.now().toString(),
+         domain: alertData.domain,
+         risk_score: alertData.risk_score ?? alertData.riskScore,
+         threat_level: alertData.threat_level ?? alertData.threatLevel,
+         action: alertData.action,
+         device_hash: alertData.deviceHash || null,
+         acknowledged: false,
+         created_at: alertData.timestamp || new Date().toISOString()
+       };
+
+       setAlerts(prev => [alert, ...prev].slice(0, 20));
+       
+       if (alert.risk_score >= 80) {
+         toast({
+           title: "🚨 High Risk Detected",
+           description: `Blocked access to ${alert.domain}`,
+           variant: "destructive"
+         });
+         playAlertSound();
+       }
+    });
+
+    setSocket(newSocket);
+
+    // Initial fetch could go here if the backend had an endpoint for recent history
+    // For now we start empty or assume local state. 
 
     return () => {
-      supabase.removeChannel(logsChannel);
-      supabase.removeChannel(alertsChannel);
+      newSocket.close();
     };
-  }, [fetchInitialData]);
+  }, []);
 
-  // Acknowledge alert
   const acknowledgeAlert = async (alertId: string) => {
-    const { error } = await supabase
-      .from('alerts')
-      .update({ acknowledged: true })
-      .eq('id', alertId);
-
-    if (!error) {
-      setAlerts((prev) => prev.filter((a) => a.id !== alertId));
-    }
+    setAlerts(prev => prev.filter(a => a.id !== alertId));
   };
 
-  // Acknowledge all alerts
   const acknowledgeAllAlerts = async () => {
-    const alertIds = alerts.map((a) => a.id);
-    if (alertIds.length === 0) return;
+    setAlerts([]);
+  };
 
-    const { error } = await supabase
-      .from('alerts')
-      .update({ acknowledged: true })
-      .in('id', alertIds);
-
-    if (!error) {
-      setAlerts([]);
-    }
+  const refresh = () => {
+    // Reconnect or fetch history if implemented
+    if (socket && !socket.connected) socket.connect();
   };
 
   return {
@@ -192,11 +143,10 @@ export function useRealtimeMonitor() {
     isLoading,
     acknowledgeAlert,
     acknowledgeAllAlerts,
-    refresh: fetchInitialData,
+    refresh,
   };
 }
 
-// Play alert sound
 function playAlertSound() {
   try {
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -213,6 +163,7 @@ function playAlertSound() {
     oscillator.start();
     oscillator.stop(audioContext.currentTime + 0.2);
   } catch (e) {
-    console.log('Could not play alert sound');
+    console.error('Could not play alert sound');
   }
 }
+

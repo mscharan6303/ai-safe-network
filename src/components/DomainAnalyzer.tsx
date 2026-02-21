@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { Search, Shield, AlertTriangle, CheckCircle, Loader2, XCircle } from "lucide-react";
+import { Search, Shield, AlertTriangle, CheckCircle, Loader2, XCircle, ArrowRight } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 interface AnalysisResult {
@@ -20,6 +19,7 @@ interface AnalysisResult {
     hasWin: boolean;
     hasPhishing: boolean;
     hasAdult: boolean;
+    hasDataCollection?: boolean;
     entropy: number;
   };
 }
@@ -36,19 +36,20 @@ const DomainAnalyzer = () => {
     setResult(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('analyze-domain', {
-        body: { domain: domain.trim(), source: 'manual' },
+      const response = await fetch('http://localhost:3000/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain: domain.trim(), source: 'manual' }),
       });
 
-      if (error) throw error;
-
+      if (!response.ok) throw new Error('Analysis request failed');
+      const data = await response.json();
       setResult(data);
       
-      // Show toast for blocked domains
       if (data.action !== 'ALLOW') {
         toast({
-          title: data.action === 'HARD-BLOCK' ? "🚨 Domain Blocked!" : "⚠️ Domain Flagged",
-          description: `${domain} has been classified as ${data.threatLevel} risk`,
+          title: data.action === 'HARD-BLOCK' ? "🚨 Domain Blocked" : "⚠️ Domain Flagged",
+          description: `Risk Level: ${data.threatLevel}`,
           variant: "destructive",
         });
       }
@@ -56,7 +57,7 @@ const DomainAnalyzer = () => {
       console.error('Analysis failed:', error);
       toast({
         title: "Analysis Failed",
-        description: "Could not analyze domain. Please try again.",
+        description: "Could not analyze domain. Ensure backend is running.",
         variant: "destructive",
       });
     } finally {
@@ -68,96 +69,69 @@ const DomainAnalyzer = () => {
     "google.com",
     "free-money-win.xyz",
     "bet-now-casino.com",
-    "github.com",
+    "analytics-pixel-track.net",
   ];
-
-  const getActionIcon = (action: string) => {
-    switch (action) {
-      case 'HARD-BLOCK':
-        return <XCircle className="w-8 h-8 text-destructive" />;
-      case 'SOFT-BLOCK':
-        return <AlertTriangle className="w-8 h-8 text-warning" />;
-      default:
-        return <CheckCircle className="w-8 h-8 text-success" />;
-    }
-  };
-
-  const getActionColor = (action: string) => {
-    switch (action) {
-      case 'HARD-BLOCK':
-        return 'border-destructive/50';
-      case 'SOFT-BLOCK':
-        return 'border-warning/50';
-      default:
-        return 'border-success/50';
-    }
-  };
 
   const getRiskColor = (score: number) => {
     if (score >= 80) return 'text-destructive';
-    if (score >= 50) return 'text-warning';
-    return 'text-success';
+    if (score >= 50) return 'text-orange-500';
+    return 'text-green-600';
   };
 
   return (
-    <section className="py-24 relative">
-      {/* Background accent */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,hsl(174_72%_50%_/_0.05),transparent_50%)]" />
-
-      <div className="container px-4 relative z-10">
-        {/* Section header */}
+    <section className="py-20 bg-secondary/30" id="demo">
+      <div className="container px-4">
         <div className="text-center mb-12">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            Live <span className="text-gradient-cyber">Demo</span>
+          <h2 className="text-3xl font-bold tracking-tight mb-4">
+            Live Analysis Demo
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Test the AI domain classifier. Enter any domain to see real-time risk analysis.
+            Experience the AI engine in real-time. Enter a domain to see how the system classifies it.
           </p>
         </div>
 
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-2xl mx-auto">
           {/* Input section */}
-          <div className="card-cyber p-8 mb-6">
-            <div className="flex flex-col sm:flex-row gap-4 mb-6">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <div className="bg-card border shadow-sm rounded-xl p-6 mb-6">
+            <div className="flex flex-col gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   type="text"
                   placeholder="Enter domain (e.g., example.com)"
                   value={domain}
                   onChange={(e) => setDomain(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
-                  className="pl-12 h-12 bg-secondary border-border focus:border-primary font-mono"
+                  className="pl-10"
                 />
               </div>
               <Button
-                variant="cyber"
                 size="lg"
                 onClick={handleAnalyze}
                 disabled={isAnalyzing || !domain.trim()}
+                className="w-full sm:w-auto"
               >
                 {isAnalyzing ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Analyzing...
                   </>
                 ) : (
                   <>
-                    <Shield className="w-5 h-5" />
-                    Analyze
+                    Analyze Domain
+                    <ArrowRight className="w-4 h-4 ml-2" />
                   </>
                 )}
               </Button>
             </div>
 
-            {/* Example domains */}
-            <div className="flex flex-wrap gap-2">
-              <span className="text-sm text-muted-foreground">Try:</span>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="text-sm text-muted-foreground self-center">Try:</span>
               {exampleDomains.map((d) => (
                 <button
                   key={d}
                   onClick={() => setDomain(d)}
-                  className="px-3 py-1 text-sm font-mono bg-secondary hover:bg-secondary/80 rounded-lg border border-border hover:border-primary/50 transition-colors"
+                  className="px-2.5 py-1 text-xs font-medium bg-secondary hover:bg-secondary/80 rounded-md transition-colors text-secondary-foreground"
                 >
                   {d}
                 </button>
@@ -167,95 +141,54 @@ const DomainAnalyzer = () => {
 
           {/* Results section */}
           {result && (
-            <div className={`card-cyber p-8 animate-fade-in ${getActionColor(result.action)}`}>
-              {/* Header */}
-              <div className="flex items-center justify-between mb-6 pb-6 border-b border-border">
+            <div className="bg-card border shadow-md rounded-xl p-6 animate-in fade-in slide-in-from-bottom-4">
+              <div className="flex items-center justify-between mb-8 pb-6 border-b">
                 <div className="flex items-center gap-4">
-                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${
-                    result.action === 'HARD-BLOCK' ? 'bg-destructive/20' :
-                    result.action === 'SOFT-BLOCK' ? 'bg-warning/20' : 'bg-success/20'
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                    result.action === 'HARD-BLOCK' ? 'bg-red-100 text-red-600' :
+                    result.action === 'SOFT-BLOCK' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'
                   }`}>
-                    {getActionIcon(result.action)}
+                    {result.action === 'HARD-BLOCK' ? <XCircle className="w-6 h-6" /> :
+                     result.action === 'SOFT-BLOCK' ? <AlertTriangle className="w-6 h-6" /> : 
+                     <CheckCircle className="w-6 h-6" />}
                   </div>
                   <div>
-                    <div className="font-mono text-lg mb-1">{result.domain}</div>
-                    <div className={`text-sm font-semibold ${
+                    <h3 className="font-mono text-lg font-medium">{result.domain}</h3>
+                    <p className={`text-sm font-semibold ${
                       result.action === 'HARD-BLOCK' ? 'text-destructive' :
-                      result.action === 'SOFT-BLOCK' ? 'text-warning' : 'text-success'
+                      result.action === 'SOFT-BLOCK' ? 'text-orange-600' : 'text-green-600'
                     }`}>
-                      {result.action === 'HARD-BLOCK' ? '🚫 HARD BLOCKED' :
-                       result.action === 'SOFT-BLOCK' ? '⚠️ SOFT BLOCKED' : '✓ ALLOWED'}
-                    </div>
+                      {result.action}
+                    </p>
                   </div>
                 </div>
 
-                {/* Risk score gauge */}
-                <div className="text-center">
-                  <div className={`text-4xl font-bold ${getRiskColor(result.riskScore)}`}>
+                <div className="text-right">
+                  <div className={`text-3xl font-bold ${getRiskColor(result.riskScore)}`}>
                     {result.riskScore}%
                   </div>
-                  <div className="text-sm text-muted-foreground">Risk Score</div>
+                  <div className="text-xs text-muted-foreground uppercase tracking-wide">Risk Score</div>
                 </div>
               </div>
 
-              {/* Risk bar */}
-              <div className="mb-6">
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-muted-foreground">Threat Level</span>
-                  <span className={getRiskColor(result.riskScore)}>
-                    {result.threatLevel.charAt(0).toUpperCase() + result.threatLevel.slice(1)}
-                  </span>
+              {result.features.hasDataCollection && (
+                <div className="mb-6 p-4 bg-orange-50 border border-orange-100 rounded-lg flex items-center gap-3 text-orange-800">
+                  <AlertTriangle className="w-5 h-5 text-orange-600" />
+                  <div>
+                    <h4 className="font-semibold text-sm">Privacy Warning</h4>
+                    <p className="text-xs opacity-90">This site appears to collect user data (analytics/tracking) in the background.</p>
+                  </div>
                 </div>
-                <div className="h-3 bg-secondary rounded-full overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-500 rounded-full ${
-                      result.riskScore >= 80 ? "bg-destructive" :
-                      result.riskScore >= 50 ? "bg-warning" : "bg-success"
-                    }`}
-                    style={{ width: `${result.riskScore}%` }}
-                  />
+              )}
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="p-3 bg-secondary/50 rounded-lg">
+                  <span className="text-muted-foreground block text-xs mb-1">Threat Level</span>
+                  <span className="font-medium capitalize">{result.threatLevel}</span>
                 </div>
-              </div>
-
-              {/* Category badge */}
-              <div className="mb-6">
-                <span className="text-sm text-muted-foreground mr-2">Category:</span>
-                <span className="px-3 py-1 rounded-full text-sm font-medium bg-primary/20 text-primary capitalize">
-                  {result.category}
-                </span>
-              </div>
-
-              {/* Feature analysis */}
-              <div>
-                <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-primary" />
-                  Feature Analysis
-                </h4>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  <div className="p-3 bg-secondary/50 rounded-lg">
-                    <div className="text-xs text-muted-foreground mb-1">Length</div>
-                    <div className="font-mono font-semibold">{result.features.length} chars</div>
-                  </div>
-                  <div className="p-3 bg-secondary/50 rounded-lg">
-                    <div className="text-xs text-muted-foreground mb-1">Entropy</div>
-                    <div className="font-mono font-semibold">{result.features.entropy}</div>
-                  </div>
-                  <div className="p-3 bg-secondary/50 rounded-lg">
-                    <div className="text-xs text-muted-foreground mb-1">Hyphens</div>
-                    <div className="font-mono font-semibold">{result.features.hyphens}</div>
-                  </div>
-                  <div className={`p-3 rounded-lg ${result.features.hasFree ? "bg-destructive/20" : "bg-secondary/50"}`}>
-                    <div className="text-xs text-muted-foreground mb-1">"free" keyword</div>
-                    <div className="font-mono font-semibold">{result.features.hasFree ? "Found ⚠️" : "None"}</div>
-                  </div>
-                  <div className={`p-3 rounded-lg ${result.features.hasBet ? "bg-destructive/20" : "bg-secondary/50"}`}>
-                    <div className="text-xs text-muted-foreground mb-1">Gambling terms</div>
-                    <div className="font-mono font-semibold">{result.features.hasBet ? "Found ⚠️" : "None"}</div>
-                  </div>
-                  <div className={`p-3 rounded-lg ${result.features.hasPhishing ? "bg-destructive/20" : "bg-secondary/50"}`}>
-                    <div className="text-xs text-muted-foreground mb-1">Phishing terms</div>
-                    <div className="font-mono font-semibold">{result.features.hasPhishing ? "Found ⚠️" : "None"}</div>
-                  </div>
+                <div className="p-3 bg-secondary/50 rounded-lg">
+                  <span className="text-muted-foreground block text-xs mb-1">Category</span>
+                  <span className="font-medium capitalize">{result.category}</span>
                 </div>
               </div>
             </div>
