@@ -17,9 +17,11 @@ app.use(express.json());
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", 
-    methods: ["GET", "POST"]
-  }
+    origin: ["https://ai-safe-network-frontend-fu61zheij.vercel.app", "https://ai-safe-network-dashboard.vercel.app", "http://localhost:5173", "http://localhost:3000"], 
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  transports: ['websocket', 'polling']
 });
 
 const PORT = process.env.PORT || 3000;

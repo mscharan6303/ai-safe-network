@@ -49,7 +49,10 @@ export function useRealtimeMonitor() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const newSocket = io(BACKEND_URL);
+    const newSocket = io(BACKEND_URL, {
+      transports: ['websocket'],
+      upgrade: false
+    });
 
     newSocket.on('connect', () => {
       console.log('Connected to backend');

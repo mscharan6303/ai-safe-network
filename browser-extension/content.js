@@ -79,26 +79,28 @@ function checkCurrentPage() {
             // 1. Send Notification
             chrome.runtime.sendMessage({ 
                 action: "notify", 
-                title: "🚫 Security Alert: Access Blocked", 
-                message: `Blocking ${domain} due to '${data.category}' risk.` 
+                title: "🚫 High Risk Warning", 
+                message: `AI Guard detected '${data.category}' risk on this page.` 
             });
 
-            // 2. Delay blocking slightly to ensure user sees context/notification can fire
-            setTimeout(() => {
-                 document.body.innerHTML = `
-                <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:#111827; color:white; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:2147483647; font-family:sans-serif; text-align:center;">
-                    <div style="font-size:60px; margin-bottom:20px;">🛡️</div>
-                    <h1 style="color:#ef4444; font-size:32px; margin-bottom:10px;">Dangerous Website Blocked</h1>
-                    <p style="font-size:18px; color:#9ca3af; max-width:600px;">The AI Network Guard has identified <b>${domain}</b> as a critical threat.</p>
-                    <div style="margin-top:20px; padding:15px; background:#1f2937; border-radius:8px; border:1px solid #374151;">
-                        <p style="margin:5px 0; color:#ef4444; font-weight:bold;">Threat: ${data.category || 'High Risk'}</p>
-                        <p style="margin:5px 0;">Score: ${data.riskScore}%</p>
-                    </div>
+            // 2. Create a Warning Banner instead of blocking the whole page
+            const banner = document.createElement('div');
+            banner.id = 'ai-guard-warning-banner';
+            banner.innerHTML = `
+                <div style="background:#ef4444; color:white; padding:12px; text-align:center; font-family:sans-serif; position:fixed; top:0; left:0; width:100%; z-index:2147483647; display:flex; align-items:center; justify-content:center; gap:15px; box-shadow:0 2px 10px rgba(0,0,0,0.3);">
+                    <span style="font-size:20px;">🛡️</span>
+                    <span style="font-weight:bold;">Security Warning:</span> 
+                    <span>This page (${domain}) is flagged as <b>${data.category}</b>. Risk Score: ${data.riskScore}%</span>
+                    <button id="close-ai-banner" style="background:rgba(255,255,255,0.2); border:1px solid white; color:white; padding:4px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Dismiss</button>
                 </div>
             `;
-            // Stop further execution
-            throw new Error("Blocked by AI Guard");
-            }, 1000); // 1 Second delay
+            document.body.prepend(banner);
+            document.body.style.paddingTop = '50px';
+
+            document.getElementById('close-ai-banner').onclick = () => {
+                banner.remove();
+                document.body.style.paddingTop = '0px';
+            };
         }
     });
 }
