@@ -71,7 +71,8 @@ const WHITELIST_DOMAINS = [
   "netflix.com", "spotify.com", "gmail.com", "outlook.com", "office.com", "zoom.us",
   "slack.com", "discord.com", "reddit.com", "medium.com", "quora.com", "canvas",
   "instructure.com", "blackboard.com", "ucla.edu", "mit.edu", "stanford.edu",
-  "bitly.com", "t.co", "tinyurl.com", "dropbox.com", "drive.google.com", "adobe.com"
+  "bitly.com", "t.co", "tinyurl.com", "dropbox.com", "drive.google.com", "adobe.com",
+  "vercel.app", "onrender.com", "supabase.co"
 ];
 
 function levenshtein(a: string, b: string): number {
@@ -205,7 +206,7 @@ function analyzeUrlLogic(urlStr: string, isBackgroundData: boolean = false) {
 
   // 3. TLD Analysis
   const suspiciousTLDs = ['.xyz', '.top', '.club', '.info', '.live', '.loan', '.gq', '.cf', '.tk', '.ml', '.ga', '.cn', '.ru'];
-  const trustedTLDs = ['.com', '.net', '.org', '.gov', '.edu', '.in', '.io', '.co', '.me'];
+  const trustedTLDs = ['.com', '.net', '.org', '.gov', '.edu', '.in', '.io', '.co', '.me', '.app', '.dev'];
 
   if (suspiciousTLDs.some(tld => domain.endsWith(tld))) {
       riskScore += 20; // Increase baseline suspicion
