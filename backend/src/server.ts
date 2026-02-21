@@ -107,67 +107,71 @@ function analyzeUrlLogic(urlStr: string, isBackgroundData: boolean = false) {
   // 1. Expanded Whitelist Check (Fastest)
   const isWhitelisted = WHITELIST_DOMAINS.some(d => domain === d || domain.endsWith("." + d));
   if (isWhitelisted) {
-    return {
-      domain,
-      riskScore: 0,
-      threatLevel: "safe",
-      action: "ALLOW",
-      category: "trusted",
-      features: { isWhitelisted: true }
-    };
-  }
-
-  // 2. Strict Banking Policy (Refined)
-  // Only trigger if the bank keyword is part of the MAIN domain name, not subdomains or paths.
-  const BANKING_KEYWORDS = ["bank", "sbi", "hdfc", "icici", "axis", "kotak", "pnb", "bob", "canara", "unionbank", "rbi", "chase", "boa", "citi", "amex", "wellsfargo", "hsbc", "paytm", "phonepe"];
-  const domainParts = domain.split('.');
-  const mainName = domainParts.length > 1 ? domainParts[domainParts.length - 2] : domain;
+      return {
+        domain,
+        fullUrl: urlStr,
+        riskScore: 0,
+        threatLevel: "safe",
+        action: "ALLOW",
+        category: "trusted",
+        features: { isWhitelisted: true }
+      };
+    }
   
-  // High trust TLDs that override banking blocks (e.g. worldbank.org)
-  const HIGH_TRUST_TLDS = ["gov", "edu", "mil", "org", "int", "gov.in"];
-  const currentTLD = domainParts.slice(-1)[0];
-
-  for (const bankWord of BANKING_KEYWORDS) {
-    if (mainName.includes(bankWord)) {
-      if (domain.endsWith('.bank.in') || HIGH_TRUST_TLDS.includes(currentTLD)) {
-        // Legitimate bank or high-trust organization
-        return {
-          domain,
-          riskScore: 0,
-          threatLevel: "safe",
-          action: "ALLOW",
-          category: "verified_authority",
-          features: { isWhitelisted: true, compliance: "authorized_entity" }
-        };
-      } else {
-        // High suspicion: using bank name on commercial/generic TLD
-        // Only block if it's a very clear match, otherwise just increase risk
-        if (mainName === bankWord || mainName.startsWith(bankWord + "-") || mainName.endsWith("-" + bankWord)) {
+    // 2. Strict Banking Policy (Refined)
+    // Only trigger if the bank keyword is part of the MAIN domain name, not subdomains or paths.
+    const BANKING_KEYWORDS = ["bank", "sbi", "hdfc", "icici", "axis", "kotak", "pnb", "bob", "canara", "unionbank", "rbi", "chase", "boa", "citi", "amex", "wellsfargo", "hsbc", "paytm", "phonepe"];
+    const domainParts = domain.split('.');
+    const mainName = domainParts.length > 1 ? domainParts[domainParts.length - 2] : domain;
+    
+    // High trust TLDs that override banking blocks (e.g. worldbank.org)
+    const HIGH_TRUST_TLDS = ["gov", "edu", "mil", "org", "int", "gov.in"];
+    const currentTLD = domainParts.slice(-1)[0];
+  
+    for (const bankWord of BANKING_KEYWORDS) {
+      if (mainName.includes(bankWord)) {
+        if (domain.endsWith('.bank.in') || HIGH_TRUST_TLDS.includes(currentTLD)) {
+          // Legitimate bank or high-trust organization
           return {
             domain,
-            riskScore: 95,
-            threatLevel: "critical",
-            action: "HARD-BLOCK",
-            category: "unauthorized_banking",
-            features: { matchedBankKeyword: bankWord, violation: "commercial_tld_mismatch" }
+            fullUrl: urlStr,
+            riskScore: 0,
+            threatLevel: "safe",
+            action: "ALLOW",
+            category: "verified_authority",
+            features: { isWhitelisted: true, compliance: "authorized_entity" }
           };
+        } else {
+          // High suspicion: using bank name on commercial/generic TLD
+          // Only block if it's a very clear match, otherwise just increase risk
+          if (mainName === bankWord || mainName.startsWith(bankWord + "-") || mainName.endsWith("-" + bankWord)) {
+            return {
+              domain,
+              fullUrl: urlStr,
+              riskScore: 95,
+              threatLevel: "critical",
+              action: "HARD-BLOCK",
+              category: "unauthorized_banking",
+              features: { matchedBankKeyword: bankWord, violation: "commercial_tld_mismatch" }
+            };
+          }
         }
       }
     }
-  }
-
-  // 3. General Authority Whitelist
-  const AUTHORITY_DOMAINS = ["gov", "edu", "mil", "nic.in", "gov.in", "ac.in", "edu.in"];
-  if (AUTHORITY_DOMAINS.some(tld => domain.endsWith("." + tld))) {
-    return {
-      domain,
-      riskScore: 5,
-      threatLevel: "safe",
-      action: "ALLOW",
-      category: "educational_government",
-      features: { isAuthority: true }
-    };
-  }
+  
+    // 3. General Authority Whitelist
+    const AUTHORITY_DOMAINS = ["gov", "edu", "mil", "nic.in", "gov.in", "ac.in", "edu.in"];
+    if (AUTHORITY_DOMAINS.some(tld => domain.endsWith("." + tld))) {
+      return {
+        domain,
+        fullUrl: urlStr,
+        riskScore: 5,
+        threatLevel: "safe",
+        action: "ALLOW",
+        category: "educational_government",
+        features: { isAuthority: true }
+      };
+    }
 
 
 
