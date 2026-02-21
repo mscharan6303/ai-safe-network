@@ -4,7 +4,7 @@
   "version": "1.0",
   "description": "Displays risk scores for links and blocks risky URLs when background analysis is active.",
   "permissions": ["activeTab", "scripting", "storage", "notifications"],
-  "host_permissions": ["<all_urls>", "http://localhost:3000/*"],
+  "host_permissions": ["<all_urls>", "http://localhost:3000/*", "https://ai-safe-network-backend.onrender.com/*"],
   "background": {
     "service_worker": "background.js"
   },

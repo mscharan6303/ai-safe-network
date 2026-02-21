@@ -10,7 +10,7 @@ const Navbar = () => {
 
   useEffect(() => {
     // Check initial status
-    fetch('http://localhost:3000/api/status')
+    fetch('https://ai-safe-network-backend.onrender.com/api/status')
       .then(res => res.json())
       .then(data => setIsProtectionOn(data.active))
       .catch(err => console.error("Backend offline", err));
@@ -20,7 +20,7 @@ const Navbar = () => {
     setIsLoading(true);
     try {
       const newState = !isProtectionOn;
-      const res = await fetch('http://localhost:3000/api/toggle-protection', {
+      const res = await fetch('https://ai-safe-network-backend.onrender.com/api/toggle-protection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ active: newState })

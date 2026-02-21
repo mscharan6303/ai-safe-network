@@ -8,7 +8,7 @@ const char* ssid = "RAMESH";
 const char* password = "Ramesh1$";
 // IMPORTANT: Replace with the IP address of the machine running the Node.js backend
 // Do NOT use localhost. Use your computer's local LAN IP (e.g., 192.168.1.X)
-const char* backend_url = "http://192.168.1.5:3000/api/analyze";
+const char* backend_url = "https://ai-safe-network-backend.onrender.com/api/analyze";
 
 // Upstream DNS server (Google DNS)
 const char* upstream_dns_ip = "8.8.8.8";

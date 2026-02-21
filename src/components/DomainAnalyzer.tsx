@@ -36,7 +36,7 @@ const DomainAnalyzer = () => {
     setResult(null);
 
     try {
-      const response = await fetch('http://localhost:3000/api/analyze', {
+      const response = await fetch('https://ai-safe-network-backend.onrender.com/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ domain: domain.trim(), source: 'manual' }),

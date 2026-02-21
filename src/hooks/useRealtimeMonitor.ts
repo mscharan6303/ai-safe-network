@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import io, { Socket } from 'socket.io-client';
 import { toast } from "@/hooks/use-toast";
 
-const BACKEND_URL = 'http://localhost:3000';
+const BACKEND_URL = 'https://ai-safe-network-backend.onrender.com';
 
 export interface DomainLog {
   id: string;

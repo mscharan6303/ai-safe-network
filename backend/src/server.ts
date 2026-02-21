@@ -205,80 +205,110 @@ function analyzeUrlLogic(urlStr: string, isBackgroundData: boolean = false) {
 
   // 3. TLD Analysis
   const suspiciousTLDs = ['.xyz', '.top', '.club', '.info', '.live', '.loan', '.gq', '.cf', '.tk', '.ml', '.ga', '.cn', '.ru'];
+  const trustedTLDs = ['.com', '.net', '.org', '.gov', '.edu', '.in', '.io', '.co', '.me'];
+
   if (suspiciousTLDs.some(tld => domain.endsWith(tld))) {
       riskScore += 20; // Increase baseline suspicion
       features.suspiciousTLD = true;
+  } else if (trustedTLDs.some(tld => domain.endsWith(tld))) {
+      riskScore -= 10; // Bonus for established TLDs
   }
 
-  // 4. Deep Content Analysis (URL Path & Query)
-  // Check keywords in BOTH domain and path
-  const textToScan = domain + fullPath; 
-
-  const checkList = (list: string[], catName: string, weight: number) => {
+  // 4. Keyword Analysis (Nuanced)
+  // We check Domain separately from Path. Domain keywords are 3x more dangerous.
+  const checkKeywords = (text: string, list: string[], catName: string, weight: number, isPath: boolean) => {
+    let foundCount = 0;
     for (const word of list) {
-        if (textToScan.includes(word)) {
-            riskScore += weight;
-            detectedCategories.add(catName);
+        if (text.includes(word)) {
+            foundCount++;
             features.matchedKeywords.push(word);
         }
     }
+    
+    if (foundCount > 0) {
+        detectedCategories.add(catName);
+        // Path matches are weighted at 1/3 of Domain matches
+        const finalWeight = isPath ? (weight / 3) : weight;
+        // Cap the score: First match gives full category weight, subsequent matches give 5 points each
+        riskScore += finalWeight + (Math.min(foundCount - 1, 3) * 5);
+    }
   };
 
-  checkList(KEYWORD_RULES.gambling, "gambling", 40); // Lowered from 80
-  checkList(KEYWORD_RULES.scam, "scam", 50); // Lowered from 80
-  checkList(KEYWORD_RULES.phishing, "phishing", 60); // Lowered from 100
-  checkList(KEYWORD_RULES.fake_apps, "piracy", 40); // Lowered from 80
-  checkList(KEYWORD_RULES.malware, "malware", 80); // Lowered from 100
-  checkList(KEYWORD_RULES.adult, "adult", 50); // Lowered from 90
-  checkList(KEYWORD_RULES.social_scam, "social_scam", 40);
-  checkList(KEYWORD_RULES.fraud, "fraud", 70); 
-  checkList(KEYWORD_RULES.crypto_scam, "crypto", 50);
-  checkList(KEYWORD_RULES.medium_risk, "suspicious", 10);
+  const domainLower = domain.toLowerCase();
+  const pathLower = fullPath.toLowerCase();
 
-  // DATA EXFILTRATION & TRACKING RULES
-  // Keywords indicating background data collection
+  const scanCategories = () => {
+    const categories = [
+      { list: KEYWORD_RULES.gambling, name: "gambling", weight: 35 },
+      { list: KEYWORD_RULES.scam, name: "scam", weight: 40 },
+      { list: KEYWORD_RULES.phishing, name: "phishing", weight: 45 },
+      { list: KEYWORD_RULES.fake_apps, name: "piracy", weight: 30 },
+      { list: KEYWORD_RULES.malware, name: "malware", weight: 70 },
+      { list: KEYWORD_RULES.adult, name: "adult", weight: 40 },
+      { list: KEYWORD_RULES.social_scam, name: "social_scam", weight: 30 },
+      { list: KEYWORD_RULES.fraud, name: "fraud", weight: 60 },
+      { list: KEYWORD_RULES.crypto_scam, name: "crypto", weight: 40 }
+    ];
+
+    for (const cat of categories) {
+      checkKeywords(domainLower, cat.list, cat.name, cat.weight, false);
+      checkKeywords(pathLower, cat.list, cat.name, cat.weight, true);
+    }
+  };
+
+  scanCategories();
+
+  // DATA EXFILTRATION & TRACKING RULES (Apply mostly to background data)
   const TRACKING_KEYWORDS = ["analytics", "pixel", "telemetry", "collect", "event", "measure", "beacon", "metrics", "tracker", "log"];
-  let trackingScore = 0;
-  
-  for (const words of TRACKING_KEYWORDS) {
-      if (textToScan.includes(words)) {
-          trackingScore += 30;
-          detectedCategories.add("data_collection");
-          features.matchedKeywords.push(words);
+  let trackingMatches = 0;
+  for (const word of TRACKING_KEYWORDS) {
+      if (domainLower.includes(word) || pathLower.includes(word)) {
+          trackingMatches++;
+          features.matchedKeywords.push(word);
       }
   }
-
-  // If this analysis is for Background Data (AJAX/Fetch), apply strict privacy
-  if (trackingScore > 0) {
-      // Base tracking risk
-      riskScore += trackingScore;
+  
+  if (trackingMatches > 0) {
+      detectedCategories.add("data_collection");
+      // Tracking is only suspicious if it happens multiple times or in background
+      if (isBackgroundData || trackingMatches > 2) {
+          riskScore += 20 + (trackingMatches * 5);
+      }
   }
 
 
   // 5. Heuristics
-  if (features.entropy > 4.5) riskScore += 15;
-  if (domain.length > 60) riskScore += 10;
+  // Only penalize high entropy/length if other risky flags are present
+  const hasRiskFlags = detectedCategories.size > 0 || features.suspiciousTLD || features.isTyposquat;
+  
+  if (features.entropy > 4.8 && hasRiskFlags) riskScore += 20;
+  if (domain.length > 70 && hasRiskFlags) riskScore += 15;
   
   // Subdomain stacking (e.g., secure.login.paypal.verify.com)
-  if ((domain.match(/\./g) || []).length > 3) riskScore += 25;
+  const dotCount = (domain.match(/\./g) || []).length;
+  if (dotCount > 4) riskScore += 30;
 
-  riskScore = Math.min(riskScore, 100);
+  // Final normalization
+  riskScore = Math.max(0, Math.min(riskScore, 100));
 
   if (detectedCategories.size > 0) {
       category = Array.from(detectedCategories).join(", ");
   }
 
-  // 6. Final Decision
+  // 6. Final Decision (Higher Thresholds for Blocking)
   let threatLevel = "low";
   let action = "ALLOW";
 
-  if (riskScore >= 80) {
+  if (riskScore >= 90) { // Increased from 80 to reduce false positives
     threatLevel = "critical";
     action = "HARD-BLOCK";
-  } else if (riskScore >= 50) {
-    threatLevel = "medium";
+  } else if (riskScore >= 65) { // Increased from 50
+    threatLevel = "high";
     action = "SOFT-BLOCK";
-  } else if (riskScore > 20) {
+  } else if (riskScore >= 40) {
+    threatLevel = "medium";
+    action = "ALLOW"; // Log but don't block
+  } else if (riskScore > 15) {
     threatLevel = "suspicious";
   }
 

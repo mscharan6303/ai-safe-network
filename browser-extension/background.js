@@ -5,7 +5,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const extensionEnabled = result.extensionEnabled !== false;
         
         // 2. Check backend state
-        fetch('http://localhost:3000/api/status')
+    fetch('https://ai-safe-network-backend.onrender.com/api/status')
           .then(res => res.json())
           .then(data => {
             // Return BOTH local and backend status
@@ -29,7 +29,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   if (request.action === "analyze") {
-    fetch('http://localhost:3000/api/analyze', {
+    fetch('https://ai-safe-network-backend.onrender.com/api/analyze', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ domain: request.domain, source: 'extension', deepScan: request.deepScan })
