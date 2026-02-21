@@ -79,28 +79,28 @@ function checkCurrentPage() {
             // 1. Send Notification
             chrome.runtime.sendMessage({ 
                 action: "notify", 
-                title: "🚫 High Risk Warning", 
-                message: `AI Guard detected '${data.category}' risk on this page.` 
+                title: "🚫 Security Alert", 
+                message: `AI Guard identifies ${domain} as a critical threat.` 
             });
 
-            // 2. Create a Warning Banner instead of blocking the whole page
-            const banner = document.createElement('div');
-            banner.id = 'ai-guard-warning-banner';
-            banner.innerHTML = `
-                <div style="background:#ef4444; color:white; padding:12px; text-align:center; font-family:sans-serif; position:fixed; top:0; left:0; width:100%; z-index:2147483647; display:flex; align-items:center; justify-content:center; gap:15px; box-shadow:0 2px 10px rgba(0,0,0,0.3);">
-                    <span style="font-size:20px;">🛡️</span>
-                    <span style="font-weight:bold;">Security Warning:</span> 
-                    <span>This page (${domain}) is flagged as <b>${data.category}</b>. Risk Score: ${data.riskScore}%</span>
-                    <button id="close-ai-banner" style="background:rgba(255,255,255,0.2); border:1px solid white; color:white; padding:4px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Dismiss</button>
-                </div>
-            `;
-            document.body.prepend(banner);
-            document.body.style.paddingTop = '50px';
-
-            document.getElementById('close-ai-banner').onclick = () => {
-                banner.remove();
-                document.body.style.paddingTop = '0px';
-            };
+            // 2. Perform Full Block AFTER the page has opened
+            setTimeout(() => {
+                document.body.innerHTML = `
+                    <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:#111827; color:white; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:2147483647; font-family:sans-serif; text-align:center; padding:20px;">
+                        <div style="font-size:80px; margin-bottom:20px;">🛡️</div>
+                        <h1 style="color:#ef4444; font-size:36px; margin-bottom:15px;">Safety Blocked by AI</h1>
+                        <p style="font-size:20px; color:#9ca3af; max-width:700px; line-height:1.6;">
+                            The AI Guard analyzed <b>${domain}</b> after opening and determined it contains <b>${data.category}</b> risks.
+                        </p>
+                        <div style="margin-top:30px; padding:20px; background:#1f2937; border-radius:12px; border:1px solid #374151; min-width:300px;">
+                            <p style="margin:5px 0; color:#ef4444; font-weight:bold; font-size:18px;">Threat: ${data.category}</p>
+                            <p style="margin:10px 0; color:#9ca3af;">Risk Score: ${data.riskScore}%</p>
+                        </div>
+                        <button onclick="window.history.back()" style="margin-top:30px; background:#ef4444; color:white; border:none; padding:12px 30px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:16px;">Go Back to Safety</button>
+                    </div>
+                `;
+                document.body.style.overflow = 'hidden';
+            }, 500); // Small delay to ensure page "opened"
         }
     });
 }
@@ -210,20 +210,8 @@ function applyBadge(link, data) {
     link.appendChild(badge);
     */
 
-    // Block if high risk
+    // Link blocking moved to 'checkCurrentPage' to allow sites to open first.
     if (data.action !== 'ALLOW') {
-        // Visual indicator of blocking
-        link.style.position = 'relative';
-        
-        // Add click listener
-        link.addEventListener('click', (e) => {
-            console.log("AI Guard intercepted click");
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            e.stopPropagation();
-            
-            alert(`🚫 BLOCKED BY AI GUARD\n\nDomain: ${data.domain}\nRisk Score: ${score}%\nThreat: ${data.threatLevel}\n\nThis connection was blocked to protect your device.`);
-            return false;
-        }, true); // Capture phase to beat other listeners
+        link.style.borderBottom = '1px solid #ef4444'; // Subtle indicator without blocking
     }
 }
