@@ -1,73 +1,69 @@
-# Welcome to your Lovable project
+# 🛡️ AI Safe Network - Cyber Threat & Hardware DNS Guard
 
-## Project info
+A real-time, multi-layered cyber security platform designed to detect, block, and monitor network threats, phishing attacks, unauthorized banking domains, and malicious web traffic using an ESP32 hardware gateway, Node.js AI threat engine, Chrome extension, and React monitoring dashboard.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+---
 
-## How can I edit this code?
+## 🌟 Key Features
 
-There are several ways of editing your application.
+- **Hardware DNS Gateway (ESP32)**: Intercepts UDP DNS requests on Port 53 and blocks dangerous domains at the network layer via NXDOMAIN.
+- **AI Threat Analysis Engine**: Evaluates domain entropy, typosquatting (Levenshtein distance), suspicious TLDs, and rule-based keyword patterns.
+- **Strict Banking Compliance**: Enforces `.bank.in` domain verification for all banking keywords.
+- **Chromium Security Extension**: Provides browser-level link risk scanning and active page protection.
+- **Security Operations Dashboard**: Real-time traffic visualization, system health status, and live alert feeds via Socket.io.
+- **Cloud Logging & Storage**: Asynchronous threat logging to Supabase database.
 
-**Use Lovable**
+---
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## 🚀 System Architecture
 
-Changes made via Lovable will be committed automatically to this repo.
+```text
+[ Connected Devices ] ──(UDP DNS: 53)──► [ ESP32 Gateway ]
+                                                 │
+                                           HTTP POST /api/dns-query
+                                                 ▼
+[ React Dashboard ] ◄──(Socket.io)───── [ Node.js AI Backend ]
+[ Chrome Extension ] ◄──(REST API)──────         │
+                                                 ▼
+                                        [ Supabase Cloud DB ]
+```
 
-**Use your preferred IDE**
+---
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🛠️ Tech Stack
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- **Backend**: Node.js, Express.js, TypeScript, Socket.io, Axios, Supabase Client
+- **Frontend**: React 18, Vite, TypeScript, Tailwind CSS, Shadcn UI, Recharts, Lucide Icons
+- **Firmware**: ESP32 Microcontroller (C++/Arduino framework), WiFiUDP, ArduinoJson
+- **Browser Extension**: Manifest V3, Web Extensions API, JavaScript
 
-Follow these steps:
+---
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 💻 Quick Start
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### 1. Start Backend Server
+```bash
+cd backend
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### 2. Start Frontend Dashboard
+```bash
+npm install
+npm run dev
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### 3. Load Browser Extension
+1. Open `chrome://extensions` in your browser.
+2. Enable **Developer mode**.
+3. Click **Load unpacked** and select the project root folder.
 
-**Use GitHub Codespaces**
+### 4. Deploy to Render
+The repository includes a `render.yaml` specification for 1-click Render web service deployment.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+---
 
-## What technologies are used for this project?
+## 📄 License
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Distributed under the MIT License.
