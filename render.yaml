@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: ai-safe-network-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        value: https://wrkenecvxvepeqeblprk.supabase.co
+      - key: SUPABASE_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indya2VuZWN2eHZlcGVxZWJscHJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NTg4NjcsImV4cCI6MjA4MTUzNDg2N30.UpQREda7FEsV3I8-IkV5xJUbYApchMTGpKEfc5PlIkc
