@@ -4,6 +4,14 @@ A real-time, multi-layered cyber security platform designed to detect, block, an
 
 ---
 
+## 📸 Threat Blocking Screenshots
+
+| Browser Alert Threat Block | In-Tab Page Protection Screen |
+| :---: | :---: |
+| ![In-Browser Threat Alert](docs/images/browser-alert-block.png) | ![Dangerous Website Blocked Page](docs/images/dangerous-website-blocked.png) |
+
+---
+
 ## 🌟 Key Features
 
 - **Hardware DNS Gateway (ESP32)**: Intercepts UDP DNS requests on Port 53 and blocks dangerous domains at the network layer via NXDOMAIN.
